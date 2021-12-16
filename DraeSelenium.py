@@ -30,7 +30,7 @@ for h, row in tqdm(enumerate(img)):
             start, end = None, None
     lines.append((None, None, -500, -1))
 
-driver = webdriver.Edge()
+driver = webdriver.Firefox()
 driver.get("https://garticphone.com")
 driver.implicitly_wait(2)
 start_button = driver.find_element("xpath", '/html/body/div/div[2]/div/div/div[3]/div[1]/div[2]/button')
@@ -67,27 +67,17 @@ for line in lines:
         x_off = x_1 - current_width
         y_off = 0 if not new_line else 3
         current_width += x_off
-        print("start point")
-        print(x_off, y_off)
         action.move_by_offset(x_off, y_off)
         action.click_and_hold()
         x_off = x_2 - current_width
         y_off = 0
         current_width += x_off
-        print("end point")
-        print(x_off, y_off)
         action.move_by_offset(x_off, y_off)
         action.release()
         new_line = False
     else:
         x_off = -current_width
         current_height = current_height + 1
-        #y_off = 1
-        #current_width = 0
         new_line = True
-        #print("new line")
-        #print(x_off, y_off)
-        #action.move_by_offset(x_off, y_off)
-    print(f"current_width {current_width}, current_height: {current_height}")
 
 action.perform()
