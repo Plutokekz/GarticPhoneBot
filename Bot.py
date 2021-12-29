@@ -8,7 +8,8 @@ import logging
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import ActionChains
 from tqdm import tqdm
-import pyperclip
+from ImageProcessor import preprocess_image
+# import pyperclip
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class Bot:
     def __init__(self):
         options = Options()
         # options.add_argument("-headless")
+        options.binary_location = r"/opt/firefox/firefox-bin"
         self.driver = webdriver.Firefox(options=options)
 
     def login(self, name: str):
@@ -85,9 +87,9 @@ class Bot:
             login.click()
             logger.info(f"logged in as {name}")
             time.sleep(5)
-            invite = self.driver.find_element("xpath", invite_button)
-            invite.click()
-            return pyperclip.paste()
+            # invite = self.driver.find_element("xpath", invite_button)
+            # invite.click()
+            # return pyperclip.paste()
         else:
             logger.warning("bot is currently not in the login screen")
 
@@ -158,36 +160,42 @@ class Bot:
             lines.append((None, None, -500, -1))
         return lines
 
+    def _move(self, path, canvas):
+        action = ActionChains(self.driver)
+
+        # move to 0, 0 of the canves
+        action.move_to_element(canvas)
+        width, height = int(canvas.get_attribute("width")), int(canvas.get_property("height"))
+        action.move_by_offset(-width//2, -height//2)
+
+        current_x, current_y = 0, 0
+        for line in path:
+            first_point = True
+            for point in line:
+                x, y = point
+                if first_point:
+                    action.move_by_offset(x, y)
+                    current_x, current_y = x, y
+                    first_point = False
+                    action.click_and_hold()
+                else:
+                    x_off, y_off = current_x - x, current_y - y
+                    action.move_by_offset(x_off, y_off)
+                    current_x, current_y = x, y
+            action.release()
+            action.move_to_element(canvas)
+            action.move_by_offset(-width//2, -height//2)
+        return action
+
     # TODO: add support for every photo
     def draw_image(self, image):
         if self.state == BotState.DRAWING:
-            lines = self.process_image(image)
+            canvas = self.driver.find_element("xpath", draw_canvas)
+            width, height = int(canvas.get_attribute("width")), int(canvas.get_property("height"))
+            path = preprocess_image(image, width=width, height=height)
             b = self.driver.find_element("xpath", brush)
             b.click()
-            canvas = self.driver.find_element("xpath", draw_canvas)
-            action = ActionChains(self.driver)
-            action.move_to_element(canvas)
-            action.move_by_offset(-220, -110)  # move mouse to 0, 0 of the canves
-            current_height, current_width = 0, 0
-            new_line = False
-            for line in lines:
-                x_1, y_1, x_2, y_2 = line
-                if x_1 and y_1:
-                    x_off = (x_1 - current_width)
-                    y_off = 0 if not new_line else 2
-                    current_width += x_off
-                    action.move_by_offset(x_off, y_off)
-                    action.click_and_hold()
-                    x_off = (x_2 - current_width)
-                    y_off = 0
-                    current_width += x_off
-                    action.move_by_offset(x_off, y_off)
-                    action.release()
-                    # action.pause(0.5)
-                    new_line = False
-                else:
-                    current_height = current_height + 1
-                    new_line = True
+            action = self._move(path, canvas)
             action.perform()
             self.driver.save_screenshot("drawing.png")
 
@@ -241,7 +249,7 @@ if __name__ == "__main__":
     bot.login("Plutokekz")
     bot.select_mode(GameMode.SOLO)
     bot.start_game()
-    img = cv2.imread("wal.jpg", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("img.png")
     bot.draw_image(img)
     while True:
         try:

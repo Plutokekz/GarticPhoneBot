@@ -1,0 +1,6 @@
+.gitignor
+geckodriver*
+__pycache__
+venv_windows
+venv
+msedgedriver.exe
