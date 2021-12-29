@@ -1,3 +1,4 @@
+.idea
 .gitignor
 geckodriver*
 __pycache__
