@@ -3,21 +3,28 @@ import time
 
 import cv2
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 import logging
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import ActionChains
 from tqdm import tqdm
+import pyperclip
 
 logger = logging.getLogger(__name__)
 
 cookies_button_1 = "/html/body/div[1]/div[1]/div[2]/span[1]/a"
 cookies_button_2 = '/html/body/div[2]/div[2]/div[1]/div[2]/div[2]/button[1]'
+# name_field = '/html/body/div[2]/div[2]/div/div/div[3]/div[1]/div[1]/div[2]/section/span/input'#'/html/body/div/div[2]/div/div/div[4]/div[1]/div[1]/div[2]/section/span/input'
 name_field = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[1]/div[2]/section/span/input'
+# '/html/body/div/div[2]/div/div/div[3]/div[1]/div[1]/div[2]/section/span/input'
+
 login_button = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/button'
 start_game = '/html/body/div/div[2]/div/div/div[2]/div[2]/span/button'
 start_with_less_then_four_players = '/html/body/div/div[3]/div/span/button[1]'
 draw_canvas = '/html/body/div/div[2]/div/div/div[3]/div[1]/div[2]/div/canvas[1]'
 brush = '/html/body/div/div[2]/div/div/div[3]/div[2]/div/div[1]/div[1]'
+invite_button = '/html/body/div/div[2]/div/div/div[2]/div[2]/span/section/button'
+
 
 class BotState(Enum):
     LOGIN_SCREEN = 0
@@ -55,26 +62,34 @@ GAMEMODES = {
     GameMode.SANDWICH: '/html/body/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[9]',
     GameMode.CROWD: '/html/body/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[10]',
     GameMode.BACKGROUND: '/html/body/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[11]',
-    GameMode.SOLO: '/html/body/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[12]'
+    # GameMode.SOLO: '/html/body/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[12]'
+    GameMode.SOLO: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[12]'
 }
 
 
 class Bot:
 
     def __init__(self):
-        self.driver = webdriver.Firefox()
+        options = Options()
+        # options.add_argument("-headless")
+        self.driver = webdriver.Firefox(options=options)
 
     def login(self, name: str):
         if self.state == BotState.LOGIN_SCREEN:
+            self.driver.implicitly_wait(5)
             input_field = self.driver.find_element("xpath", name_field)
+
             input_field.click()
             input_field.send_keys(name)
             login = self.driver.find_element("xpath", login_button)
             login.click()
             logger.info(f"logged in as {name}")
+            time.sleep(5)
+            invite = self.driver.find_element("xpath", invite_button)
+            invite.click()
+            return pyperclip.paste()
         else:
             logger.warning("bot is currently not in the login screen")
-        time.sleep(5)
 
     def accept_cookies(self):
         try:
@@ -88,6 +103,7 @@ class Bot:
                 logger.info("No Cookie accept button found")
         finally:
             logger.info("cookies accepted")
+        time.sleep(5)
 
     def select_mode(self, mode):
         if self.state == BotState.LOBBY:
@@ -103,20 +119,42 @@ class Bot:
 
     # TODO add canyedge detection to draw easy shapes
     def process_image(self, image):
-        img = cv2.resize(image, (175, 50), interpolation=cv2.INTER_AREA)
+
+        # img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = cv2.resize(image, (110, 55))
+        img_gray_blur = cv2.GaussianBlur(image, (5, 5), 0)
+        canny_edges = cv2.Canny(img_gray_blur, 10, 70)
+        ret, mask = cv2.threshold(canny_edges, 0, 255, cv2.THRESH_BINARY_INV)
+        # cv2.imshow("ret", ret)
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+        # cv2.imshow("mask", mask)
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+
+
+        # img = cv2.resize(mask, (220*2, 2*110), interpolation=cv2.INTER_CUBIC)
+        # cv2.imshow("mask", img)
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+        print(img)
         start = None
         end = None
         lines = []
-        for h, row in tqdm(enumerate(img)):
+        for h, row in tqdm(enumerate(mask)):
             for w, pixel in enumerate(row):
-                if pixel < 255:
+                if pixel < 1:
                     if not start:
                         start = w
                     elif start:
                         end = w
-                elif start and end:
-                    lines.append((start, h, end, h))
-                    start, end = None, None
+                else:
+                    if start and end:
+                        lines.append((start, h, end, h))
+                        start, end = None, None
+                    elif start:
+                        lines.append((start, h, start, h))
+                        start = None
             lines.append((None, None, -500, -1))
         return lines
 
@@ -135,27 +173,28 @@ class Bot:
             for line in lines:
                 x_1, y_1, x_2, y_2 = line
                 if x_1 and y_1:
-                    x_off = x_1 - current_width
+                    x_off = (x_1 - current_width)
                     y_off = 0 if not new_line else 2
                     current_width += x_off
                     action.move_by_offset(x_off, y_off)
                     action.click_and_hold()
-                    x_off = x_2 - current_width
+                    x_off = (x_2 - current_width)
                     y_off = 0
                     current_width += x_off
                     action.move_by_offset(x_off, y_off)
                     action.release()
+                    # action.pause(0.5)
                     new_line = False
                 else:
                     current_height = current_height + 1
                     new_line = True
             action.perform()
+            self.driver.save_screenshot("drawing.png")
 
-    def create_lobby(self, gartic_url='https://garticphone.com/'):
+    def create_lobby(self, gartic_url='https://garticphone.com/en'):
         self.driver.get(gartic_url)
         time.sleep(0.5)
         self.accept_cookies()
-        # TODO: get the invite url
 
     def start_game(self):
         if self.state == BotState.LOBBY:
@@ -202,7 +241,7 @@ if __name__ == "__main__":
     bot.login("Plutokekz")
     bot.select_mode(GameMode.SOLO)
     bot.start_game()
-    img = cv2.imread("img.png", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("wal.jpg", cv2.IMREAD_GRAYSCALE)
     bot.draw_image(img)
     while True:
         try:
