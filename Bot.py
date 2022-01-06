@@ -7,8 +7,9 @@ from selenium.webdriver.firefox.options import Options
 import logging
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import ActionChains
-from tqdm import tqdm
 from ImageProcessor import preprocess_image
+from SVGParser import svg_to_action
+
 # import pyperclip
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ class Bot:
     def __init__(self):
         options = Options()
         # options.add_argument("-headless")
-        options.binary_location = r"/opt/firefox/firefox-bin"
+        # options.binary_location = r"/opt/firefox/firefox-bin"
         self.driver = webdriver.Firefox(options=options)
 
     def login(self, name: str):
@@ -119,83 +120,19 @@ class Bot:
         logger.warning("bot is currently not in a lobby cant select a game mode")
         return False
 
-    # TODO add canyedge detection to draw easy shapes
-    def process_image(self, image):
-
-        # img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        image = cv2.resize(image, (110, 55))
-        img_gray_blur = cv2.GaussianBlur(image, (5, 5), 0)
-        canny_edges = cv2.Canny(img_gray_blur, 10, 70)
-        ret, mask = cv2.threshold(canny_edges, 0, 255, cv2.THRESH_BINARY_INV)
-        # cv2.imshow("ret", ret)
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-        # cv2.imshow("mask", mask)
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-
-
-        # img = cv2.resize(mask, (220*2, 2*110), interpolation=cv2.INTER_CUBIC)
-        # cv2.imshow("mask", img)
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-        print(img)
-        start = None
-        end = None
-        lines = []
-        for h, row in tqdm(enumerate(mask)):
-            for w, pixel in enumerate(row):
-                if pixel < 1:
-                    if not start:
-                        start = w
-                    elif start:
-                        end = w
-                else:
-                    if start and end:
-                        lines.append((start, h, end, h))
-                        start, end = None, None
-                    elif start:
-                        lines.append((start, h, start, h))
-                        start = None
-            lines.append((None, None, -500, -1))
-        return lines
-
-    def _move(self, path, canvas):
-        action = ActionChains(self.driver)
-
-        # move to 0, 0 of the canves
-        action.move_to_element(canvas)
-        width, height = int(canvas.get_attribute("width")), int(canvas.get_property("height"))
-        action.move_by_offset(-width//2, -height//2)
-
-        current_x, current_y = 0, 0
-        for line in path:
-            first_point = True
-            for point in line:
-                x, y = point
-                if first_point:
-                    action.move_by_offset(x, y)
-                    current_x, current_y = x, y
-                    first_point = False
-                    action.click_and_hold()
-                else:
-                    x_off, y_off = current_x - x, current_y - y
-                    action.move_by_offset(x_off, y_off)
-                    current_x, current_y = x, y
-            action.release()
-            action.move_to_element(canvas)
-            action.move_by_offset(-width//2, -height//2)
-        return action
-
-    # TODO: add support for every photo
-    def draw_image(self, image):
+    def draw_image(self, image, name):
         if self.state == BotState.DRAWING:
             canvas = self.driver.find_element("xpath", draw_canvas)
-            width, height = int(canvas.get_attribute("width")), int(canvas.get_property("height"))
-            path = preprocess_image(image, width=width, height=height)
+            width, height = int(canvas.get_attribute("clientWidth")), int(canvas.get_property("clientHeight"))
+            logger.info(f"canvas size: {width}x{height}")
             b = self.driver.find_element("xpath", brush)
             b.click()
-            action = self._move(path, canvas)
+            action = ActionChains(self.driver)
+            action.move_to_element(canvas)
+            action.move_by_offset(-width // 2, -height // 2)
+            current_x, current_y = 0, 0
+            preprocess_image(image, width=width, height=height, name=name)
+            svg_to_action(name, action, current_x, current_y)
             action.perform()
             self.driver.save_screenshot("drawing.png")
 
@@ -249,8 +186,8 @@ if __name__ == "__main__":
     bot.login("Plutokekz")
     bot.select_mode(GameMode.SOLO)
     bot.start_game()
-    img = cv2.imread("img.png")
-    bot.draw_image(img)
+    img = cv2.imread("data/images/jpg_png/HamzaYiDiplom.png")
+    bot.draw_image(img, "data/images/jpg_png/processed_image")
     while True:
         try:
             time.sleep(10)
