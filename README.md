@@ -1,4 +1,8 @@
 # GarticPhoneBot
+Drawing like a Human from this
+![](https://github.com/Plutokekz/GarticPhoneBot/blob/master/data/images/jpg_png/YiDiplom.png?raw=true)
+to this
+![](https://github.com/Plutokekz/GarticPhoneBot/blob/master/data/images/jpg_png/drawing.png?raw=true)
 ## Installation
 Clone the repository and install the requirements
 ```
