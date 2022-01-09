@@ -29,6 +29,4 @@ If you run ``SVGParser.py`` the svg called `processed_image` gets drawn with pya
 your Mouse. And the is no shortcut to interrupt it. You can only stop it by triggering the pyautogui failsafe. Therefor
 the mouse has to go out of Screen. On Windows you can do this by Pressing `STRG+ALT+ENTF`.
 ## Documentation
-not available
-
-RTFC
+Only in the code available, every function got there docstring with a little explanation
