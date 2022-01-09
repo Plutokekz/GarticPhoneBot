@@ -36,3 +36,6 @@ sympy
 bezier
 svgwrite
 svgpathtools
+requests
+pytz
+docutils

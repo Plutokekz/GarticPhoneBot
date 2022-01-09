@@ -1,14 +1,14 @@
+import os.path
 from enum import Enum
 import time
 
 import cv2
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+import numpy as np
+import selenium
+import selenium.webdriver.firefox.options
 import logging
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver import ActionChains
-from ImageProcessor import preprocess_image
-from SVGParser import svg_to_action
+import ImageProcessor
+import SVGParser
 
 # import pyperclip
 
@@ -71,13 +71,24 @@ GAMEMODES = {
 
 class Bot:
 
-    def __init__(self):
-        options = Options()
-        # options.add_argument("-headless")
-        # options.binary_location = r"/opt/firefox/firefox-bin"
-        self.driver = webdriver.Firefox(options=options)
+    def __init__(self, options: selenium.webdriver.firefox.options.Options, images_dir: str = "data/images/"):
+        """
+        Initialing the bot with the given options for the firefox selenium driver
 
-    def login(self, name: str):
+        :param options: options for firefox (may something like headless)
+        :param images_dir: the directory where the processes image should be saved
+        """
+        self.driver = selenium.webdriver.Firefox(options=options)
+        self.images_dir = images_dir
+
+    def login(self, name: str) -> None:
+        """
+        Login in with the given name
+        TODO: handle timeouts with selenium so there is no need for time.sleep
+
+        :param name: the username for GarticPhone
+        :return: None
+        """
         if self.state == BotState.LOGIN_SCREEN:
             self.driver.implicitly_wait(5)
             input_field = self.driver.find_element("xpath", name_field)
@@ -94,21 +105,33 @@ class Bot:
         else:
             logger.warning("bot is currently not in the login screen")
 
-    def accept_cookies(self):
+    def accept_cookies(self) -> None:
+        """
+        Accept the cookies that apper on the login Screen
+        TODO: handle timeouts and if there where no cookies found
+
+        :return: None
+        """
         try:
             accept_button = self.driver.find_element("xpath", cookies_button_1)
             accept_button.click()
-        except NoSuchElementException:
+        except selenium.common.exceptions.NoSuchElementException:
             try:
                 accept_button = self.driver.find_element("xpath", cookies_button_2)
                 accept_button.click()
-            except NoSuchElementException:
+            except selenium.common.exceptions.NoSuchElementException:
                 logger.info("No Cookie accept button found")
         finally:
             logger.info("cookies accepted")
         time.sleep(5)
 
-    def select_mode(self, mode):
+    def select_mode(self, mode: GameMode) -> bool:
+        """
+        select a game mode if the Bot is currently in the lobby and the owner
+
+        :param mode: the game mode you want to play, currently only Solo it compatible
+        :return: boolean if the game mode got selected
+        """
         if self.state == BotState.LOBBY:
             if m := GAMEMODES.get(mode):
                 m = self.driver.find_element("xpath", m)
@@ -120,35 +143,53 @@ class Bot:
         logger.warning("bot is currently not in a lobby cant select a game mode")
         return False
 
-    def draw_image(self, image, name):
+    def draw_image(self, image: np.array, name: str) -> None:
+        """
+        If the Bot ist in drawing state, you can draw the given image
+
+        :param image: cv2 image you want to draw
+        :param name: name of the svg and bmp file which get created in the process
+        :return: None
+        """
         if self.state == BotState.DRAWING:
             canvas = self.driver.find_element("xpath", draw_canvas)
             width, height = int(canvas.get_attribute("clientWidth")), int(canvas.get_property("clientHeight"))
             logger.info(f"canvas size: {width}x{height}")
             b = self.driver.find_element("xpath", brush)
             b.click()
-            action = ActionChains(self.driver)
+            action = selenium.webdriver.ActionChains(self.driver)
             action.move_to_element(canvas)
             action.move_by_offset(-width // 2, -height // 2)
             current_x, current_y = 0, 0
-            preprocess_image(image, width=width, height=height, name=name)
-            svg_to_action(name, action, current_x, current_y)
+            ImageProcessor.preprocess_image(image, width, height, file_name=name, tmp_file_location=self.images_dir)
+            SVGParser.svg_to_action(action, current_x, current_y)
             action.perform()
-            self.driver.save_screenshot("drawing.png")
+            self.driver.save_screenshot(os.path.join(self.images_dir, "jpg_png", "drawing.png"))
 
-    def create_lobby(self, gartic_url='https://garticphone.com/en'):
+    def create_lobby(self, gartic_url: str = 'https://garticphone.com/en') -> None:
+        """
+        Open the garticphone site and accepting the cookies, if they appear
+
+        :param gartic_url: the url if garticphone
+        :return: None
+        """
         self.driver.get(gartic_url)
         time.sleep(0.5)
         self.accept_cookies()
 
-    def start_game(self):
+    def start_game(self) -> None:
+        """
+        Starts the selected game mode if the bot is in the lobby and the owner
+
+        :return: -> None
+        """
         if self.state == BotState.LOBBY:
             start_the_game = self.driver.find_element('xpath', start_game)
             start_the_game.click()
             try:
                 button = self.driver.find_element('xpath', start_with_less_then_four_players)
                 button.click()
-            except NoSuchElementException:
+            except selenium.common.exceptions.NoSuchElementException:
                 pass
             logger.info("Starting the game")
             time.sleep(3.5)
@@ -162,7 +203,12 @@ class Bot:
         pass
 
     @property
-    def state(self):
+    def state(self) -> BotState:
+        """
+        Returns the current state of the GarticPhone Website
+
+        :return: the current state
+        """
         current_url = self.driver.current_url
         end_of_url = current_url.split('/')[-1].split('?')[0]
         if end_of_url == 'lobby':
@@ -179,15 +225,22 @@ class Bot:
             return BotState.LOGIN_SCREEN
 
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to test the Bot
+    :return: None
+    """
+    options = selenium.webdriver.firefox.options.Options()
+    # options.add_argument("-headless")
+    # options.binary_location = r"/opt/firefox/firefox-bin"
     logging.basicConfig(level=logging.INFO)
-    bot = Bot()
+    bot = Bot(options)
     bot.create_lobby()
     bot.login("Plutokekz")
     bot.select_mode(GameMode.SOLO)
     bot.start_game()
-    img = cv2.imread("data/images/jpg_png/HamzaYiDiplom.png")
-    bot.draw_image(img, "data/images/jpg_png/processed_image")
+    img = cv2.imread("data/images/jpg_png/YiDiplom.png")
+    bot.draw_image(img, "processed_image")
     while True:
         try:
             time.sleep(10)
@@ -195,3 +248,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(e)
             break
+
+
+if __name__ == "__main__":
+    main()
