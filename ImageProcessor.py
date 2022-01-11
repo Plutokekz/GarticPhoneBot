@@ -37,7 +37,7 @@ def _detect_edges(image: np.array) -> np.array:
     """
     high_thresh, thresh_im = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     low_thresh = 0.5 * high_thresh
-    blurred = cv2.resize(cv2.GaussianBlur(image, (35, 35), 0), (800, 600))
+    blurred = cv2.GaussianBlur(image, (1, 1), 0)
     canny_edges = cv2.Canny(blurred, low_thresh, high_thresh)
     ret, mask = cv2.threshold(canny_edges, 0, 255, cv2.THRESH_BINARY_INV)
     return mask
@@ -60,8 +60,8 @@ def preprocess_image(image: np.array, width: int, height: int, tmp_file_location
     bmp_path = os.path.join(tmp_file_location, "bmp", f"{file_name}.bmp")
     cv2.imwrite(bmp_path, edges)
     os.system(f"rm {svg_path}")
-    os.system(f"potrace "
-              f"-b svg"
+    os.system(f"potrace"
+              f" -b svg"
               f" --flat"
               f" --group"
               f" --width {width - 30}pt"
@@ -83,7 +83,7 @@ def main():
 
         :return: None
         """
-        image = cv2.imread("data/images/jpg_png/img.png")
+        image = cv2.imread("data/images/jpg_png/YiDiplom.png")
         preprocess_image(image, 1920, 1080, "data/images/", 'test')
 
     test_drawing()
