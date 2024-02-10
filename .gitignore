@@ -8,3 +8,7 @@ msedgedriver.exe
 mkbitmap.exe
 potrace.exe
 /data/images/jpg_png/DSC08339.JPG
+.env
+poetry.lock
+IEDriverServer.exe
+chromedriver.exe

@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "garticphonebot"
+version = "0.1.0"
+description = ""
+authors = ["Lukas Mahr <lukas@yousuckatprogramming.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+selenium = "^4.7.2"
+pyautogui = "^0.9.53"
+numpy = "^1.24.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
