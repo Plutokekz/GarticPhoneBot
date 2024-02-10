@@ -1,21 +1,27 @@
-import cv2
+"""
+This module contains the functions to convert an image to an SVG file
+"""
+
+from typing import Tuple
 import os
 import time
+
+import cv2
 import numpy as np
 
 
-def _conv_img_to_gray(image: np.array) -> np.array:
+def _conv_img_to_gray(image: np.ndarray) -> np.ndarray:
     """
     Convert the given image to gray scale
 
     :param image: cv2 image or a numpy array
     :return: gray scaled image as np array
     """
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # pylint: disable=E1101
     return gray_image
 
 
-def _scale_image(image: np.array, dim: (int, int) = (175, 50)) -> np.array:
+def _scale_image(image: np.ndarray, dim: Tuple[int, int] = (175, 50)) -> np.ndarray:
     """
     Resize the given image to the given dimensions, with cv2.INTER_AREA
 
@@ -23,11 +29,11 @@ def _scale_image(image: np.array, dim: (int, int) = (175, 50)) -> np.array:
     :param dim: the target dimensions
     :return: cv2 image
     """
-    resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)  # pylint: disable=E1101
     return resized_image
 
 
-def _detect_edges(image: np.array) -> np.array:
+def _detect_edges(image: np.ndarray) -> np.ndarray:
     """
     Detects the edges of an Images, by automatically calculation a threshold, blurring the image
     and using the threshold for the cv2.Canny function.
@@ -35,15 +41,15 @@ def _detect_edges(image: np.array) -> np.array:
     :param image: cv2 image where you want the edges to be detected
     :return: the inverted mask of the detected edges as cv3 image
     """
-    high_thresh, thresh_im = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    high_thresh, _ = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # pylint: disable=E1101
     low_thresh = 0.5 * high_thresh
-    blurred = cv2.GaussianBlur(image, (1, 1), 0)
-    canny_edges = cv2.Canny(blurred, low_thresh, high_thresh)
-    ret, mask = cv2.threshold(canny_edges, 0, 255, cv2.THRESH_BINARY_INV)
+    blurred = cv2.GaussianBlur(image, (1, 1), 0)  # pylint: disable=E1101
+    canny_edges = cv2.Canny(blurred, low_thresh, high_thresh)  # pylint: disable=E1101
+    _, mask = cv2.threshold(canny_edges, 0, 255, cv2.THRESH_BINARY_INV)  # pylint: disable=E1101
     return mask
 
 
-def preprocess_image(image: np.array, width: int, height: int, tmp_file_location: str, file_name: str) -> None:
+def preprocess_image(image: np.ndarray, width: int, height: int, tmp_file_location: str, file_name: str) -> None:
     """
     Processes the given image to an SVG file
 
@@ -58,15 +64,17 @@ def preprocess_image(image: np.array, width: int, height: int, tmp_file_location
     edges = _detect_edges(gray)
     svg_path = os.path.join(tmp_file_location, "svg", f"{file_name}.svg")
     bmp_path = os.path.join(tmp_file_location, "bmp", f"{file_name}.bmp")
-    cv2.imwrite(bmp_path, edges)
+    cv2.imwrite(bmp_path, edges)  # pylint: disable=E1101
     os.system(f"rm {svg_path}")
-    os.system(f"potrace"
-              f" -b svg"
-              f" --flat"
-              f" --group"
-              f" --width {width - 30}pt"
-              f" --height {height - 30}pt"
-              f" -o {svg_path} {bmp_path}")
+    os.system(
+        f"potrace"
+        f" -b svg"
+        f" --flat"
+        f" --group"
+        f" --width {width - 30}pt"
+        f" --height {height - 30}pt"
+        f" -o {svg_path} {bmp_path}"
+    )
     time.sleep(2)
 
 
@@ -83,8 +91,8 @@ def main():
 
         :return: None
         """
-        image = cv2.imread("data/images/jpg_png/YiDiplom.png")
-        preprocess_image(image, 1920, 1080, "data/images/", 'test')
+        image = cv2.imread("data/images/jpg_png/YiDiplom.png")  # pylint: disable=E1101
+        preprocess_image(image, 1920, 1080, "data/images/", "test")
 
     test_drawing()
 

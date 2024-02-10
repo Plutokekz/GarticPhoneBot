@@ -1,41 +1,50 @@
+"""
+This module contains the Api for the GarticPhone Website
+"""
+
 import os.path
 from enum import Enum
 import time
+import logging
+
 
 import numpy as np
 import pyperclip
 import selenium
 import selenium.webdriver.firefox.options
-import logging
 
 from app.core.image import preprocess_image
 from app.core.svg import svg_to_action
 
 logger = logging.getLogger(__name__)
 
-cookies_button_1 = "/html/body/div[1]/div[1]/div[2]/span[1]/a"
-cookies_button_2 = '/html/body/div[2]/div[2]/div[1]/div[2]/div[2]/button[1]'
-name_field = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[1]/div[2]/section/span/input'
+COOKIES_BUTTON_1 = "/html/body/div[1]/div[1]/div[2]/span[1]/a"
+COOKIES_BUTTON_2 = "/html/body/div[2]/div[2]/div[1]/div[2]/div[2]/button[1]"
+NAME_FIELD = "/html/body/div/div[2]/div/div/div[4]/div[1]/div[1]/div[2]/section/span/input"
 
-skip_adds_button = '/html/body/div[1]/div[3]/div[1]/div[2]/button'
+SKIP_ADDS_BUTTON = "/html/body/div[1]/div[3]/div[1]/div[2]/button"
 
-login_button = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/button'
-start_game = '/html/body/div/div[2]/div/div/div[2]/div[2]/span/button'
-start_with_less_then_four_players = '/html/body/div/div[3]/div/span/button[1]'
-draw_canvas = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[1]'
-draw_canvas_2 = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[2]'
-draw_canvas_3 = '/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[3]'
-brush_tiny = '/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[1]'
-brush_small = '/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[2]'
-brush_medium = '/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[3]'
-brush_large = '/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[4]'
-brush_extra_large = '/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[5]'
-invite_button = '/html/body/div/div[2]/div/div/div[2]/div[2]/span/section/button'
-finish_button = '/html/body/div/div[2]/div/div/div[3]/div[2]/button'
-mute_sound_button = '/html/body/div/div[2]/div/div/button'
+LOGIN_BUTTON = "/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/button"
+START_GAME = "/html/body/div/div[2]/div/div/div[2]/div[2]/span/button"
+START_WITH_LESS_THEN_FOUR_PLAYERS = "/html/body/div/div[3]/div/span/button[1]"
+DRAW_CANVAS = "/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[1]"
+DRAW_CANVAS_2 = "/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[2]"
+DRAW_CANVAS_3 = "/html/body/div/div[2]/div/div/div[4]/div[1]/div[2]/div/canvas[3]"
+BRUSH_TINY = "/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[1]"
+BRUSH_SMALL = "/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[2]"
+BRUSH_MEDIUM = "/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[3]"
+BRUSH_LARGE = "/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[4]"
+BRUSH_EXTRA_LARGE = "/html/body/div/div[2]/div/div/div[4]/div[2]/div/div[1]/div[5]"
+INVITE_BUTTON = "/html/body/div/div[2]/div/div/div[2]/div[2]/span/section/button"
+FINISH_BUTTON = "/html/body/div/div[2]/div/div/div[3]/div[2]/button"
+MUTE_SOUND_BUTTON = "/html/body/div/div[2]/div/div/button"
 
 
 class GameState(Enum):
+    """
+    The current state of the GarticPhone Website
+    """
+
     LOGIN_SCREEN = 0
     LOBBY = 1
     DRAWING = 2
@@ -45,6 +54,10 @@ class GameState(Enum):
 
 
 class GameMode(Enum):
+    """
+    The different game modes of GarticPhone
+    """
+
     NORMAL = 0
     IMITATION = 1
     SECRET = 2
@@ -63,25 +76,28 @@ class GameMode(Enum):
 
 
 GAME_MODES = {
-    GameMode.NORMAL: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[1]',
-    GameMode.IMITATION: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[2]',
-    GameMode.SECRET: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[3]',
-    GameMode.ANIMATION: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[4]',
-    GameMode.ICEBREAKER: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[5]',
-    GameMode.COMPLEMENT: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[6]',
-    GameMode.MASTER_WORK: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[7]',
-    GameMode.STORY: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[8]',
-    GameMode.MISSING_PIECE: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[9]',
-    GameMode.COOP: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[10]',
-    GameMode.SCORE: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[11]',
-    GameMode.SANDWICH: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[12]',
-    GameMode.CROWD: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[13]',
-    GameMode.BACKGROUND: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[14]',
-    GameMode.SOLO: '/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[15]'
+    GameMode.NORMAL: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[1]",
+    GameMode.IMITATION: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[2]",
+    GameMode.SECRET: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[3]",
+    GameMode.ANIMATION: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[4]",
+    GameMode.ICEBREAKER: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[5]",
+    GameMode.COMPLEMENT: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[6]",
+    GameMode.MASTER_WORK: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[7]",
+    GameMode.STORY: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[8]",
+    GameMode.MISSING_PIECE: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[9]",
+    GameMode.COOP: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[10]",
+    GameMode.SCORE: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[11]",
+    GameMode.SANDWICH: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[12]",
+    GameMode.CROWD: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[13]",
+    GameMode.BACKGROUND: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[14]",
+    GameMode.SOLO: "/html/body/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[1]/div/div[15]",
 }
 
 
 class Bot:
+    """
+    The Bot for the GarticPhone Website
+    """
 
     def __init__(self, options: selenium.webdriver.firefox.options.Options, images_dir: str = "app/data/images/"):
         """
@@ -103,11 +119,11 @@ class Bot:
         """
         if self.state == GameState.LOGIN_SCREEN:
             self.driver.implicitly_wait(5)
-            input_field = self.driver.find_element("xpath", name_field)
+            input_field = self.driver.find_element("xpath", NAME_FIELD)
 
             input_field.click()
             input_field.send_keys(name)
-            login = self.driver.find_element("xpath", login_button)
+            login = self.driver.find_element("xpath", LOGIN_BUTTON)
             login.click()
             logger.info(f"logged in as {name}")
             time.sleep(5)
@@ -115,7 +131,7 @@ class Bot:
             logger.warning("bot is currently not in the login screen")
         self.skip_adds()
 
-        invite = self.driver.find_element("xpath", invite_button)
+        invite = self.driver.find_element("xpath", INVITE_BUTTON)
         invite.click()
         print(pyperclip.paste())
 
@@ -125,7 +141,7 @@ class Bot:
         """
         time.sleep(10)
         try:
-            skip = self.driver.find_element("xpath", skip_adds_button)
+            skip = self.driver.find_element("xpath", SKIP_ADDS_BUTTON)
             skip.click()
         except selenium.common.exceptions.NoSuchElementException:
             logger.info("No adds to skip")
@@ -141,11 +157,11 @@ class Bot:
         :return: None
         """
         try:
-            accept_button = self.driver.find_element("xpath", cookies_button_1)
+            accept_button = self.driver.find_element("xpath", COOKIES_BUTTON_1)
             accept_button.click()
         except selenium.common.exceptions.NoSuchElementException:
             try:
-                accept_button = self.driver.find_element("xpath", cookies_button_2)
+                accept_button = self.driver.find_element("xpath", COOKIES_BUTTON_2)
                 accept_button.click()
             except selenium.common.exceptions.NoSuchElementException:
                 logger.info("No Cookie accept button found")
@@ -162,8 +178,8 @@ class Bot:
         """
         if self.state == GameState.LOBBY:
             if m := GAME_MODES.get(mode):
-                m = self.driver.find_element("xpath", m)
-                m.click()
+                element = self.driver.find_element("xpath", m)
+                element.click()
                 logger.info(f"selected game mode: {mode}")
                 return True
             logger.warning(f"mode not found: {mode}")
@@ -171,7 +187,7 @@ class Bot:
         logger.warning("bot is currently not in a lobby cant select a game mode")
         return False
 
-    def draw_image(self, image: np.array, name: str) -> None:
+    def draw_image(self, image: np.ndarray, name: str) -> None:
         """
         If the Bot ist in drawing state, you can draw the given image
 
@@ -180,10 +196,16 @@ class Bot:
         :return: None
         """
         if self.state == GameState.DRAWING:
-            canvas = self.driver.find_element("xpath", draw_canvas)
-            width, height = int(canvas.get_attribute("clientWidth")), int(canvas.get_property("clientHeight"))
+            canvas = self.driver.find_element("xpath", DRAW_CANVAS)
+            c_width, c_height = canvas.get_attribute("clientWidth"), canvas.get_attribute("clientHeight")
+            if c_width is None:
+                raise ValueError("canvas size not found")
+            if c_height is None:
+                raise ValueError("canvas size not found")
+            width: int = int(c_width)
+            height: int = int(c_height)
             logger.info(f"canvas size: {width}x{height}")
-            b = self.driver.find_element("xpath", brush_tiny)
+            b = self.driver.find_element("xpath", BRUSH_TINY)
             b.click()
             action = selenium.webdriver.ActionChains(self.driver)
             action.move_to_element(canvas)
@@ -194,7 +216,7 @@ class Bot:
             action.perform()
             self.driver.save_screenshot(os.path.join(self.images_dir, "jpg_png", "drawing.png"))
 
-    def create_lobby(self, gartic_url: str = 'https://garticphone.com/en') -> None:
+    def create_lobby(self, gartic_url: str = "https://garticphone.com/en") -> None:
         """
         Open the garticphone site and accepting the cookies, if they appear
 
@@ -208,35 +230,47 @@ class Bot:
     def start_game(self) -> bool:
         """
         Starts the selected game mode if the bot is in the lobby and the owner
-
         :return: -> bool
         """
         if self.state == GameState.LOBBY:
-            start_the_game = self.driver.find_element('xpath', start_game)
+            start_the_game = self.driver.find_element("xpath", START_GAME)
             start_the_game.click()
             try:
-                button = self.driver.find_element('xpath', start_with_less_then_four_players)
+                button = self.driver.find_element("xpath", START_WITH_LESS_THEN_FOUR_PLAYERS)
                 button.click()
             except selenium.common.exceptions.NoSuchElementException:
                 pass
             logger.info("Starting the game")
             time.sleep(3.5)
             return True
-        else:
-            logger.warning("cant start the game bot is currently not in a lobby")
-            return False
+        logger.warning("cant start the game bot is currently not in a lobby")
+        return False
 
     def finish_drawing(self):
-        pass
+        """
+        Finish the drawing if the bot is currently in the drawing state
+        :return:
+        """
 
     def join_lobby(self, url: str) -> None:
-        pass
+        """
+        Join a lobby with the given url
+        :param url:
+        :return:
+        """
 
     def interpret_image(self):
-        pass
+        """
+        Interpret the image if the bot is currently in the interpreting state
+        :return:
+        """
 
     def gen_image_from_text(self, text):
-        pass
+        """
+        Generate an image from the given text
+        :param text:
+        :return:
+        """
 
     @property
     def state(self) -> GameState:
@@ -246,16 +280,15 @@ class Bot:
         :return: the current state
         """
         current_url = self.driver.current_url
-        end_of_url = current_url.split('/')[-1].split('?')[0]
-        if end_of_url == 'lobby':
+        end_of_url = current_url.split("/")[-1].split("?")[0]
+        if end_of_url == "lobby":
             return GameState.LOBBY
-        elif end_of_url == 'book':
+        if end_of_url == "book":
             return GameState.WATCH_DRAWINGS
-        elif end_of_url == 'start':
+        if end_of_url == "start":
             return GameState.WRITING
-        elif end_of_url == 'draw':
+        if end_of_url == "draw":
             return GameState.DRAWING
-        elif end_of_url == 'write':
+        if end_of_url == "write":
             return GameState.INTERPRETING
-        else:
-            return GameState.LOGIN_SCREEN
+        return GameState.LOGIN_SCREEN

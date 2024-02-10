@@ -10,8 +10,22 @@ python = "^3.11"
 selenium = "^4.7.2"
 pyautogui = "^0.9.53"
 numpy = "^1.24.1"
+opencv-python = "^4.9.0.80"
+svgpathtools = "^1.6.1"
+types-pyautogui = "^0.9.3.20240106"
 
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.1.1"
+ruff = "^0.2.1"
+pylint = "^3.0.3"
+mypy = "^1.8.0"
+pytest = "^8.0.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 125
+

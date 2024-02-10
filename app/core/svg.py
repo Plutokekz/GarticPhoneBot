@@ -1,15 +1,19 @@
+"""
+This module contains the functions to convert an image to an SVG file
+"""
+
 import time
 import xml.dom.minidom
-from typing import Generator
+from typing import Generator, Tuple
+import math
 
 import pyautogui
 import svgpathtools
-import math
 import selenium.webdriver
 from svgpathtools import Line
 
 
-def get_transform_from_svg(file_name: str) -> ((float, float), (float, float)):
+def get_transform_from_svg(file_name: str) -> Tuple[Tuple[float, float], Tuple[float, float]]:
     """
     Reads the transform attribute from the given svg file
 
@@ -17,30 +21,41 @@ def get_transform_from_svg(file_name: str) -> ((float, float), (float, float)):
     :return: (translate, scale)
     """
     doc = xml.dom.minidom.parse(file_name)
-    path_strings = [path.getAttribute('transform') for path in doc.getElementsByTagName('g') if
-                    path.getAttribute('transform')]
+    path_strings = [
+        path.getAttribute("transform") for path in doc.getElementsByTagName("g") if path.getAttribute("transform")
+    ]
     doc.unlink()
     translate, scale = None, None
     for t in path_strings[0].split():
         if str(t).startswith("translate"):
-            w, h = t[10:-1].split(',')
+            w, h = t[10:-1].split(",")
             translate = float(w), float(h)
         elif str(t).startswith("scale"):
-            w, h = t[6:-1].split(',')
+            w, h = t[6:-1].split(",")
             scale = float(w), float(h)
+    if translate is None:
+        translate = 0, 0
+    if scale is None:
+        scale = 1, 1
     return translate, scale
 
 
 def perpendicular_distance(pt, line: Line) -> float:
     """Calculate the perpendicular distance between a point and a line."""
-    return abs((line.end.imag - line.start.imag) * pt.real - (
-            line.end.real - line.start.real) * pt.imag + line.end.real * line.start.imag - line.end.imag * line.start.real) / (
-            (line.end.imag - line.start.imag) ** 2 + (line.end.real - line.start.real) ** 2) ** 0.5
+    return float(
+        abs(
+            (line.end.imag - line.start.imag) * pt.real
+            - (line.end.real - line.start.real) * pt.imag
+            + line.end.real * line.start.imag
+            - line.end.imag * line.start.real
+        )
+        / ((line.end.imag - line.start.imag) ** 2 + (line.end.real - line.start.real) ** 2) ** 0.5
+    )
 
 
 def douglas_peucker(path: svgpathtools.Path, epsilon: float) -> svgpathtools.Path:
     """Simplify a polyline using the Douglas-Peucker algorithm."""
-    dmax = 0
+    dmax = 0.0
     index = 0
     end = len(path)
     if end < 3:
@@ -52,7 +67,7 @@ def douglas_peucker(path: svgpathtools.Path, epsilon: float) -> svgpathtools.Pat
             dmax = d
 
     if dmax > epsilon:
-        rec_results1 = douglas_peucker(path[:index + 1], epsilon)
+        rec_results1 = douglas_peucker(path[: index + 1], epsilon)
         rec_results2 = douglas_peucker(path[index:], epsilon)
         result_list = rec_results1[:-1] + rec_results2
     else:
@@ -60,7 +75,7 @@ def douglas_peucker(path: svgpathtools.Path, epsilon: float) -> svgpathtools.Pat
     return result_list
 
 
-def calculate_offset(current_x: int, current_y: int, j: complex) -> (int, int, int, int):
+def calculate_offset(current_x: int, current_y: int, j: complex) -> Tuple[int, int, int, int]:
     """
     Calculates the offset from the current x,y and the new x,y
 
@@ -91,12 +106,14 @@ def scale_paths_generator(file_name: str) -> Generator[svgpathtools.Path, None, 
         yield path
 
 
-def svg_to_action(action: selenium.webdriver.ActionChains,
-                  current_x: int,
-                  current_y: int,
-                  file_name: str = "app/data/images/svg/processed_image.svg",
-                  path_length_range: (int, int) = (2, 100000),
-                  curve_steps: int = 2) -> None:
+def svg_to_action(
+    action: selenium.webdriver.ActionChains,
+    current_x: int,
+    current_y: int,
+    file_name: str = "app/data/images/svg/processed_image.svg",
+    path_length_range: Tuple[int, int] = (2, 100000),
+    curve_steps: int = 2,
+) -> None:
     """
     Parses the svg file to a Selenium ActionChain
 
@@ -124,15 +141,19 @@ def svg_to_action(action: selenium.webdriver.ActionChains,
                     action.move_by_offset(x_off, y_off)
                 elif isinstance(element, svgpathtools.CubicBezier):
                     for i in range(curve_steps):
-                        x_off, y_off, current_x, current_y = calculate_offset(current_x, current_y,
-                                                                              element.point(i / curve_steps))
+                        x_off, y_off, current_x, current_y = calculate_offset(
+                            current_x, current_y, element.point(i / curve_steps)
+                        )
                         action.move_by_offset(x_off, y_off)
         action.release()
 
 
-def svg_to_pyautogui(file_name: str = "data/images/svg/processed_image.svg",
-                     path_length_range: (int, int) = (2, 100000),
-                     curve_steps: int = 2, off_set=500) -> None:
+def svg_to_pyautogui(
+    file_name: str = "data/images/svg/processed_image.svg",
+    path_length_range: Tuple[int, int] = (2, 100000),
+    curve_steps: int = 2,
+    off_set=500,
+) -> None:
     """
     Parses the given svg file to pyautogui mouse movement and clicks, which get executed immediately
     :param file_name: the svg file you want to parse
@@ -167,10 +188,10 @@ def main() -> None:
     :return: None
     """
     time.sleep(5)
-    #pyautogui.PAUSE = 0.0000000001
-    #pyautogui.MINIMUM_SLEEP = 0.0
-    #svg_to_pyautogui(curve_steps=3)
-    svg_to_action(pyautogui, 0, 0, curve_steps=3)
+    pyautogui.PAUSE = 0.0000000001
+    # pyautogui.MINIMUM_SLEEP = 0.0
+    svg_to_pyautogui(curve_steps=3)
+
 
 if __name__ == "__main__":
     main()

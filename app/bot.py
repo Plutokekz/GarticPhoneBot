@@ -1,3 +1,7 @@
+"""
+Main file for the bot that will be used to play the game
+"""
+
 import logging
 import time
 
@@ -22,13 +26,13 @@ def main():
     bot.select_mode(GameMode.SOLO)
     while not bot.start_game():
         pass
-    img = cv2.imread("app/data/images/jpg_png/img.png")
+    img = cv2.imread("app/data/images/jpg_png/img.png")  # pylint: disable=no-member
     bot.draw_image(img, "processed_image")
     while True:
         try:
             time.sleep(10)
-    #        print(bot.state)
-        except Exception as e:
+        #        print(bot.state)
+        except Exception as e:  # pylint: disable=broad-except
             print(e)
             break
 
